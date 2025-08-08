@@ -55,31 +55,27 @@ Return ONLY the fields defined by the provided JSON schema.
 All unitCost values must be numbers in ${currency}. Quantities must be positive numbers.
 If includeProposal is false, return an empty string for proposal.`;
 
-    // Strict JSON schema
-    const jsonSchema = {
-      name: "QuoteSuggestion",
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
+    // JSON Schema definition (used by the model for formatting)
+    const schema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        items: {
+          type: "array",
           items: {
-            type: "array",
-            items: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                description: { type: "string" },
-                qty: { type: "number", minimum: 0 },
-                unitCost: { type: "number", minimum: 0 }
-              },
-              required: ["description", "qty", "unitCost"]
-            }
-          },
-          proposal: { type: "string" }
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              description: { type: "string" },
+              qty: { type: "number", minimum: 0 },
+              unitCost: { type: "number", minimum: 0 }
+            },
+            required: ["description", "qty", "unitCost"]
+          }
         },
-        required: ["items"]
+        proposal: { type: "string" }
       },
-      strict: true
+      required: ["items"]
     } as const;
 
     const body = {
@@ -95,7 +91,9 @@ If includeProposal is false, return an empty string for proposal.`;
       text: {
         format: {
           type: "json_schema",
-          json_schema: jsonSchema
+          name: "QuoteSuggestion",   // <-- required at this level
+          schema,                    // <-- schema object
+          strict: true               // <-- optional but recommended
         }
       }
       // Optionally: max_output_tokens: 800,
@@ -128,7 +126,7 @@ If includeProposal is false, return an empty string for proposal.`;
 
     const safeItems = rawItems
       .filter((i: any) => i && typeof i.description === "string" && i.description.trim())
-      .slice(0, 200) // hard cap so a wild output can't explode the UI
+      .slice(0, 200)
       .map((i: any) => ({
         description: String(i.description).slice(0, 500),
         qty: toNumber(i.qty, 1),
@@ -136,17 +134,14 @@ If includeProposal is false, return an empty string for proposal.`;
       }))
       .map((i: { description: string; qty: number; unitCost: number }) => ({
         ...i,
-        // Round to 2 dp for currency niceness
         qty: Math.round(i.qty * 100) / 100,
         unitCost: Math.round(i.unitCost * 100) / 100
       }));
 
-    // If schema omitted proposal and user wanted one, keep empty string
     const proposal = includeProposal ? proposalRaw : "";
 
     return NextResponse.json({ items: safeItems, proposal });
   } catch (err: any) {
-    // Return the error message but avoid leaking stack traces
     return new NextResponse(err?.message || "Server error", { status: 500 });
   }
 }
