@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PlumbSpark theme variables (replace with your real brand colors) */
+:root{
+  --brand: #0ea5e9;      /* sky-500 (placeholder) */
+  --brand-dark:#0369a1;  /* sky-700 */
+  --brand-light:#7dd3fc; /* sky-300 */
+}
+
+/* Basic reset */
+html, body {
+  height: 100%;
+}
+body {
+  @apply text-gray-900 bg-gray-50;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-md px-4 py-2 font-medium border border-transparent bg-brand text-white hover:bg-brand-dark transition;
+}
+.btn-secondary {
+  @apply inline-flex items-center justify-center rounded-md px-4 py-2 font-medium border border-gray-300 bg-white hover:bg-gray-50;
+}
+.card {
+  @apply bg-white shadow-sm border border-gray-200 rounded-lg;
+}
+label { @apply text-sm font-medium text-gray-700; }
+input, textarea {
+  @apply w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent;
+}
+table { @apply w-full text-left; }
+th { @apply text-xs uppercase tracking-wide text-gray-500; }
+td { @apply text-sm; }
