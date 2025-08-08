@@ -1,3 +1,4 @@
+// app/api/ai/suggest/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest){
@@ -77,23 +78,4 @@ If includeProposal is false, return an empty string for proposal.`;
     const output = data?.output ?? data?.choices ?? null;
 
     // 1) data.output[0].content[0].json (preferred)
-    let jsonCandidate: any = output?.[0]?.content?.[0]?.json;
-
-    // 2) Fallback: text that happens to be JSON
-    if(!jsonCandidate){
-      const maybeText = output?.[0]?.content?.[0]?.text ?? data?.output_text ?? "";
-      if (typeof maybeText === "string" && maybeText.trim()) {
-        try { jsonCandidate = JSON.parse(maybeText); } catch {}
-      }
-    }
-
-    if(!jsonCandidate){
-      return new NextResponse("Failed to parse AI output.", { status: 500 });
-    }
-
-    // Sanitize
-    const items = Array.isArray(jsonCandidate.items) ? jsonCandidate.items : [];
-    const proposal = typeof jsonCandidate.proposal === "string" ? jsonCandidate.proposal : "";
-    const safeItems = items
-      .filter((i: any) => i && typeof i.description === "string")
-      .map((i: any) => ({
+    le
