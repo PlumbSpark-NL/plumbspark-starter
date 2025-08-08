@@ -1,10 +1,12 @@
+// app/api/ai/suggest/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest){
   try{
     const { brief, region = "London, UK", currency = "GBP", includeProposal = true } = await req.json();
+
     const apiKey = process.env.OPENAI_API_KEY;
-    if(!apiKey){
+    if (!apiKey) {
       return new NextResponse("Missing OPENAI_API_KEY", { status: 500 });
     }
 
@@ -17,6 +19,7 @@ Return ONLY the fields defined by the provided JSON schema.
 All unitCost values must be numbers in ${currency}. Quantities must be positive numbers.
 If includeProposal is false, return an empty string for proposal.`;
 
+    // Strict JSON schema to force structured output
     const jsonSchema = {
       name: "QuoteSuggestion",
       schema: {
@@ -51,9 +54,12 @@ If includeProposal is false, return an empty string for proposal.`;
         { role: "user", content: `includeProposal=${includeProposal}` }
       ],
       temperature: 0.2,
-      response_format: {
-        type: "json_schema",
-        json_schema: jsonSchema
+      // UPDATED Responses API: use text.format instead of response_format
+      text: {
+        format: {
+          type: "json_schema",
+          json_schema: jsonSchema
+        }
       }
     };
 
@@ -66,29 +72,36 @@ If includeProposal is false, return an empty string for proposal.`;
       body: JSON.stringify(body)
     });
 
-    if(!r.ok){
-      const text = await r.text();
-      return new NextResponse(text, { status: 500 });
+    if (!r.ok) {
+      const errText = await r.text();
+      return new NextResponse(errText, { status: 500 });
     }
 
     const data = await r.json();
 
+    // Prefer structured JSON emitted by the Responses API
+    // Common shapes:
+    //   data.output[0].content[0].json      (when json_schema succeeds)
+    //   data.output_text                    (stringified JSON fallback)
     const output: any = data?.output ?? data?.choices ?? null;
+
     let jsonCandidate: any = output?.[0]?.content?.[0]?.json;
 
-    if(!jsonCandidate){
+    if (!jsonCandidate) {
       const maybeText: any = output?.[0]?.content?.[0]?.text ?? data?.output_text ?? "";
       if (typeof maybeText === "string" && maybeText.trim()) {
-        try { jsonCandidate = JSON.parse(maybeText); } catch {}
+        try { jsonCandidate = JSON.parse(maybeText); } catch { /* ignore */ }
       }
     }
 
-    if(!jsonCandidate){
+    if (!jsonCandidate) {
       return new NextResponse("Failed to parse AI output.", { status: 500 });
     }
 
+    // Sanitize
     const items = Array.isArray(jsonCandidate.items) ? jsonCandidate.items : [];
     const proposal = typeof jsonCandidate.proposal === "string" ? jsonCandidate.proposal : "";
+
     const safeItems = items
       .filter((i: any) => i && typeof i.description === "string")
       .map((i: any) => ({
@@ -98,7 +111,7 @@ If includeProposal is false, return an empty string for proposal.`;
       }));
 
     return NextResponse.json({ items: safeItems, proposal });
-  } catch (err: any){
+  } catch (err: any) {
     return new NextResponse(err?.message || "Server error", { status: 500 });
   }
 }
