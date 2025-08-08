@@ -10,7 +10,8 @@ function toNumber(n: any, def = 0) {
 /** Try multiple strategies to extract JSON from Responses API payload */
 function extractJsonFromResponse(data: any): any | null {
   // 1) Preferred: structured JSON
-  const structured = data?.output?.[0]?.content?.find((c: any) => "json" in c)?.json;
+  const structured =
+    data?.output?.[0]?.content?.find((c: any) => c && typeof c === "object" && "json" in c)?.json;
   if (structured && typeof structured === "object") return structured;
 
   // 2) Fallback: output_text string (stringified JSON)
@@ -83,7 +84,7 @@ If includeProposal is false, return an empty string for proposal.`;
 
     const body = {
       model: "gpt-4o-mini",
-      // New Responses API: use input
+      // New Responses API: use "input" (not "messages")
       input: [
         { role: "system", content: "You output only valid JSON matching the provided schema. Do not include markdown or explanations." },
         { role: "user", content: prompt },
@@ -97,7 +98,7 @@ If includeProposal is false, return an empty string for proposal.`;
           json_schema: jsonSchema
         }
       }
-      // You can add: max_output_tokens: 800,
+      // Optionally: max_output_tokens: 800,
     };
 
     const r = await fetch("https://api.openai.com/v1/responses", {
@@ -133,7 +134,7 @@ If includeProposal is false, return an empty string for proposal.`;
         qty: toNumber(i.qty, 1),
         unitCost: toNumber(i.unitCost, 0)
       }))
-      .map((i) => ({
+      .map((i: { description: string; qty: number; unitCost: number }) => ({
         ...i,
         // Round to 2 dp for currency niceness
         qty: Math.round(i.qty * 100) / 100,
