@@ -55,7 +55,7 @@ Return ONLY the fields defined by the provided JSON schema.
 All unitCost values must be numbers in ${currency}. Quantities must be positive numbers.
 If includeProposal is false, return an empty string for proposal.`;
 
-    // JSON Schema definition (used by the model for formatting)
+    // JSON Schema definition (ALL properties must be in "required" per new API)
     const schema = {
       type: "object",
       additionalProperties: false,
@@ -75,28 +75,26 @@ If includeProposal is false, return an empty string for proposal.`;
         },
         proposal: { type: "string" }
       },
-      required: ["items"]
+      // 👇 Required must include every key in properties (items + proposal)
+      required: ["items", "proposal"]
     } as const;
 
     const body = {
       model: "gpt-4o-mini",
-      // New Responses API: use "input" (not "messages")
       input: [
         { role: "system", content: "You output only valid JSON matching the provided schema. Do not include markdown or explanations." },
         { role: "user", content: prompt },
         { role: "user", content: `includeProposal=${includeProposal}` }
       ],
       temperature: 0.2,
-      // New Responses API: JSON schema formatting lives under text.format
       text: {
         format: {
           type: "json_schema",
-          name: "QuoteSuggestion",   // <-- required at this level
-          schema,                    // <-- schema object
-          strict: true               // <-- optional but recommended
+          name: "QuoteSuggestion",
+          schema,
+          strict: true
         }
       }
-      // Optionally: max_output_tokens: 800,
     };
 
     const r = await fetch("https://api.openai.com/v1/responses", {
