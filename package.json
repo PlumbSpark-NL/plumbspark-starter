@@ -16,7 +16,7 @@
     "openai": "^4.52.0",
     "zod": "^3.22.4",
     "clsx": "^2.1.1",
-    "@supabase/supabase-js": "^2.45.0"   // <-- add this line
+    "@supabase/supabase-js": "^2.45.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
@@ -28,5 +28,8 @@
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.23",
     "@types/node": "^20.14.10"
+  },
+  "engines": {
+    "node": ">=18.18"
   }
 }
