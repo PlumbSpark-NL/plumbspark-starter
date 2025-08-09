@@ -1,19 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { generateWithAI } from "@/lib/api";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type Item = { description: string; qty: number; unitCost: number; };
-type Quote = {
-  id: string;
-  clientName: string;
-  projectTitle: string;
-  items: Item[];
-  notes: string;
-  createdAt: string;
-};
-
-const calcTotal = (items: Item[]) => items.reduce((sum,i)=> sum + i.qty * i.unitCost, 0);
 
 export default function NewQuotePage(){
   const [clientName, setClientName] = useState("");
@@ -22,14 +13,23 @@ export default function NewQuotePage(){
   const [items, setItems] = useState<Item[]>([]);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
-  const total = calcTotal(items);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) window.location.href = "/login";
+      else setReady(true);
+    });
+  }, []);
+
+  if (!ready) return <div className="text-gray-600">Checking auth…</div>;
+
+  const total = items.reduce((sum,i)=> sum + i.qty * i.unitCost, 0);
 
   const addItem = () => setItems([...items, { description:"", qty:1, unitCost:0 }]);
-
   const updateItem = (idx:number, patch: Partial<Item>) => {
     setItems(items.map((it,i)=> i===idx ? { ...it, ...patch } : it));
   };
-
   const removeItem = (idx:number) => setItems(items.filter((_,i)=> i!==idx));
 
   const onAI = async () => {
@@ -50,17 +50,42 @@ export default function NewQuotePage(){
     }
   };
 
-  const save = () => {
-    const q: Quote = {
-      id: crypto.randomUUID(),
-      clientName, projectTitle, items, notes,
-      createdAt: new Date().toISOString()
-    };
-    const db = JSON.parse(localStorage.getItem("ps_quotes") || "[]");
-    db.push({ id: q.id, clientName, projectTitle, total: calcTotal(items), createdAt: q.createdAt });
-    localStorage.setItem("ps_quotes", JSON.stringify(db));
-    localStorage.setItem(`ps_quote_${q.id}`, JSON.stringify(q));
-    window.location.href = `/quote/${q.id}`;
+  const save = async () => {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes?.user;
+    if (!user) return window.location.assign("/login");
+
+    const { data: quote, error: qErr } = await supabase
+      .from("quotes")
+      .insert([{
+        user_id: user.id,
+        client_name: clientName,
+        project_title: projectTitle,
+        notes
+      }])
+      .select("id")
+      .single();
+
+    if (qErr || !quote) {
+      alert(qErr?.message || "Failed to create quote");
+      return;
+    }
+
+    if (items.length) {
+      const payload = items.map(i => ({
+        quote_id: quote.id,
+        description: i.description,
+        qty: i.qty,
+        unit_cost: i.unitCost
+      }));
+      const { error: iErr } = await supabase.from("quote_items").insert(payload);
+      if (iErr) {
+        alert(iErr.message);
+        return;
+      }
+    }
+
+    window.location.href = `/quote/${quote.id}`;
   };
 
   return (

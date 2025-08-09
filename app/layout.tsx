@@ -1,6 +1,8 @@
+// app/layout.tsx
 import "./../styles/globals.css";
 import type { Metadata } from "next";
 import Link from "next/link";
+import AuthButtons from "@/components/AuthButtons";
 
 export const metadata: Metadata = {
   title: "PlumbSpark",
@@ -17,10 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <img src="/logo.svg" alt="PlumbSpark" className="h-8 w-8" />
               <span className="font-bold text-lg">PlumbSpark</span>
             </Link>
-            <nav className="ml-auto flex gap-3">
-              <Link href="/dashboard" className="btn-secondary">Dashboard</Link>
-              <Link href="/new-quote" className="btn">New Quote</Link>
-            </nav>
+            <AuthButtons />
           </div>
         </header>
         <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>

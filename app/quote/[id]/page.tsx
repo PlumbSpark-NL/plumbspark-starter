@@ -1,37 +1,53 @@
 "use client";
 import { useEffect, useState } from "react";
-import { notFound, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-type Item = { description: string; qty: number; unitCost: number; };
+type Item = { description: string; qty: number; unit_cost: number; };
 type Quote = {
   id: string;
-  clientName: string;
-  projectTitle: string;
-  items: Item[];
+  client_name: string;
+  project_title: string;
   notes: string;
-  createdAt: string;
+  total: number;
+  created_at: string;
 };
 
-const calcTotal = (items: Item[]) => items.reduce((sum,i)=> sum + i.qty * i.unitCost, 0);
-
 export default function QuoteDetail(){
-  const params = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(()=>{
-    const q = localStorage.getItem(`ps_quote_${params.id}`);
-    if(q){ setQuote(JSON.parse(q)); }
-  }, [params.id]);
+  useEffect(() => {
+    (async () => {
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes.user) return (window.location.href = "/login");
 
-  if (!quote) return <div className="text-gray-600">Loading…</div>;
+      const [{ data: q, error: qe }, { data: its, error: ie }] = await Promise.all([
+        supabase.from("quotes").select("*").eq("id", id).single(),
+        supabase.from("quote_items").select("description, qty, unit_cost").eq("quote_id", id).order("id", { ascending: true })
+      ]);
+      if (qe) console.error(qe);
+      if (ie) console.error(ie);
+      setQuote(q || null);
+      setItems(its || []);
+      setLoading(false);
+    })();
+  }, [id]);
+
+  if (loading) return <div className="text-gray-600">Loading…</div>;
+  if (!quote) return <div className="text-gray-600">Not found</div>;
+
+  const calcTotal = (arr: Item[]) => arr.reduce((s,i)=> s + Number(i.qty) * Number(i.unit_cost), 0);
 
   return (
     <div className="grid gap-4">
-      <h1 className="text-2xl font-semibold">{quote.projectTitle}</h1>
+      <h1 className="text-2xl font-semibold">{quote.project_title}</h1>
       <div className="card p-6">
         <div className="grid md:grid-cols-2 gap-2">
-          <div><strong>Client:</strong> {quote.clientName}</div>
-          <div><strong>Date:</strong> {new Date(quote.createdAt).toLocaleDateString()}</div>
+          <div><strong>Client:</strong> {quote.client_name}</div>
+          <div><strong>Date:</strong> {new Date(quote.created_at).toLocaleDateString()}</div>
         </div>
       </div>
 
@@ -46,17 +62,17 @@ export default function QuoteDetail(){
             </tr>
           </thead>
           <tbody>
-            {quote.items.map((i, idx)=> (
+            {items.map((i, idx)=> (
               <tr key={idx} className="border-t">
                 <td className="p-3">{i.description}</td>
                 <td className="p-3">{i.qty}</td>
-                <td className="p-3">£{i.unitCost.toFixed(2)}</td>
-                <td className="p-3">£{(i.qty * i.unitCost).toFixed(2)}</td>
+                <td className="p-3">£{Number(i.unit_cost).toFixed(2)}</td>
+                <td className="p-3">£{(Number(i.qty) * Number(i.unit_cost)).toFixed(2)}</td>
               </tr>
             ))}
             <tr className="border-t font-semibold">
               <td className="p-3" colSpan={3}>Total</td>
-              <td className="p-3">£{calcTotal(quote.items).toFixed(2)}</td>
+              <td className="p-3">£{calcTotal(items).toFixed(2)}</td>
             </tr>
           </tbody>
         </table>

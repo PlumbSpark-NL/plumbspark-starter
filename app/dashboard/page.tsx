@@ -1,21 +1,38 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
-type Quote = {
+type Row = {
   id: string;
-  clientName: string;
-  projectTitle: string;
+  client_name: string;
+  project_title: string;
   total: number;
-  createdAt: string;
+  created_at: string;
 };
 
 export default function DashboardPage(){
-  const [quotes, setQuotes] = useState<Quote[]>([]);
-  useEffect(()=>{
-    const data = JSON.parse(localStorage.getItem("ps_quotes") || "[]");
-    setQuotes(data);
-  },[]);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: userRes } = await supabase.auth.getUser();
+      if (!userRes.user) {
+        window.location.href = "/login";
+        return;
+      }
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("id, client_name, project_title, total, created_at")
+        .order("created_at", { ascending: false });
+      if (error) console.error(error);
+      setRows(data || []);
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) return <div className="text-gray-600">Loading…</div>;
 
   return (
     <div className="grid gap-4">
@@ -35,15 +52,15 @@ export default function DashboardPage(){
             </tr>
           </thead>
           <tbody>
-            {quotes.length === 0 && (
+            {rows.length === 0 && (
               <tr><td className="p-4 text-gray-500" colSpan={5}>No quotes yet.</td></tr>
             )}
-            {quotes.map(q => (
+            {rows.map(q => (
               <tr key={q.id} className="border-t">
-                <td className="p-3">{q.clientName}</td>
-                <td className="p-3">{q.projectTitle}</td>
-                <td className="p-3">£{q.total.toFixed(2)}</td>
-                <td className="p-3">{new Date(q.createdAt).toLocaleString()}</td>
+                <td className="p-3">{q.client_name}</td>
+                <td className="p-3">{q.project_title}</td>
+                <td className="p-3">£{(q.total ?? 0).toFixed(2)}</td>
+                <td className="p-3">{new Date(q.created_at).toLocaleString()}</td>
                 <td className="p-3 text-right">
                   <Link className="btn-secondary" href={`/quote/${q.id}`}>Open</Link>
                 </td>
