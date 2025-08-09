@@ -1,4 +1,9 @@
 // app/layout.tsx
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+export const runtime = "nodejs";
+
 import "./../styles/globals.css";
 import type { Metadata } from "next";
 import Link from "next/link";
